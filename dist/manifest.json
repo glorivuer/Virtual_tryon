@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "AI Virtual Try-On",
+  "version": "1.0.9",
+  "description": "Virtually try on apparel from any webpage using your own photos.",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
+  "action": {
+    "default_title": "Open AI Virtual Try-On",
+    "default_icon": {
+      "16": "icons/sparkles16.png",
+      "48": "icons/sparkles64.png",
+      "128": "icons/sparkles128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/sparkles16.png",
+    "48": "icons/sparkles64.png",
+    "128": "icons/sparkles128.png"
+  }
+}

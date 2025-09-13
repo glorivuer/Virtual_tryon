@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Virtual Try-On</title>
+    <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h3>AI Virtual Try-On</h3>
+        </header>
+
+        <!-- API Key Settings -->
+        <div class="settings-section">
+            <label for="api-key-input">Gemini API Key</label>
+            <div class="api-key-form">
+                <input type="password" id="api-key-input" placeholder="Enter your API Key here">
+                <button id="save-key-button">Save</button>
+            </div>
+        </div>
+        
+        <div class="divider"></div>
+
+        <!-- Section 1: User Model Photo -->
+        <div id="model-section">
+            <header>
+                <h4>My Try-On Model</h4>
+            </header>
+            <div id="upload-view">
+                <p>Upload a photo of yourself, and the AI will generate a full-body model.</p>
+                <button id="upload-button" class="button-primary">Upload Photo</button>
+                <input type="file" id="file-input" accept="image/*" hidden>
+            </div>
+            <div id="preview-view" class="hidden">
+                <div class="image-wrapper">
+                    <img id="image-preview" alt="User's uploaded photo">
+                </div>
+                <div class="button-group">
+                    <button id="gemini-generate-button" class="button-secondary">
+                        <span class="button-text">Generate Full Body (Gemini)</span>
+                        <div class="spinner hidden"></div>
+                    </button>
+                    <button id="clear-image-button" class="button-danger">Replace Photo</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+        
+        <!-- Section 2: Apparel Selection -->
+        <div id="apparel-section">
+            <header>
+                <h4>Select Apparel from Page</h4>
+            </header>
+            <div id="apparel-selection-view">
+                <p>Click the button below, then select an apparel image on the webpage.</p>
+                <button id="select-apparel-button" class="button-primary">Select Image from Page</button>
+            </div>
+            <div id="apparel-preview-view" class="hidden">
+                <div class="image-wrapper">
+                    <img id="apparel-image-preview" alt="Selected apparel image">
+                </div>
+                <div class="controls-group">
+                    <label for="apparel-category-select">Select Category to Extract:</label>
+                    <select id="apparel-category-select">
+                        <option value="all items">All Items</option>
+                        <option value="clothing">Clothing (Tops, Pants, Dresses)</option>
+                        <option value="accessories">Accessories (Bags, Hats, Glasses)</option>
+                    </select>
+                    <button id="generate-apparel-button" class="button-secondary">
+                        <span class="button-text">Extract Apparel Image</span>
+                        <div class="spinner hidden"></div>
+                    </button>
+                    <button id="change-apparel-button" class="button-danger">Reselect</button>
+                </div>
+            </div>
+            <div id="apparel-result-view" class="hidden">
+                <header>
+                    <h4>Generated Result</h4>
+                </header>
+                <div class="image-wrapper">
+                    <img id="apparel-result-image" alt="Generated apparel image">
+                </div>
+                <div class="button-group">
+                    <button id="virtual-try-on-button" class="button-primary">
+                        <span class="button-text">✨ Virtual Try-On</span>
+                        <div class="spinner hidden"></div>
+                    </button>
+                    <button id="download-apparel-button" class="button-secondary">Download Image</button>
+                    <button id="back-to-preview-button" class="button-danger">Back</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Section 3: Final Try-On Result -->
+        <div id="try-on-result-view" class="hidden">
+             <header>
+                <h4>Virtual Try-On Result</h4>
+            </header>
+            <div class="image-wrapper">
+                <img id="try-on-result-image" alt="Virtual try-on result">
+            </div>
+            <div class="button-group">
+                <button id="download-try-on-button" class="button-primary">Download Result</button>
+                <button id="start-over-button" class="button-danger">Start Over</button>
+            </div>
+            <div class="social-share-section">
+                <label>Share to:</label>
+                <div class="social-links">
+                    <a href="#" class="social-link" id="share-twitter" title="Share on X (Twitter)">
+                        <span class="icon">X</span>
+                    </a>
+                    <a href="#" class="social-link" id="share-pinterest" title="Pin on Pinterest">
+                        <span class="icon">P</span>
+                    </a>
+                    <a href="#" class="social-link" id="share-facebook" title="Share on Facebook">
+                        <span class="icon">F</span>
+                    </a>
+                    <a href="#" class="social-link disabled" id="share-instagram" title="Instagram doesn't allow direct web sharing. Please download first.">
+                        <span class="icon">I</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="divider"></div>
+
+        <!-- Creative Editing Section -->
+        <div id="creative-edit-section-container" class="hidden"> <!-- Wrapper for visibility control -->
+            <div id="creative-edit-section">
+                <fieldset>
+                    <legend>✨ Creative Edit</legend>
+                    <div class="edit-group">
+                        <label>Change Background:</label>
+                        <div class="button-grid-4">
+                            <button class="preset-button" data-type="background" data-prompt="in a modern, bright office">Office</button>
+                            <button class="preset-button" data-type="background" data-prompt="in a cozy, warm cafe">Cafe</button>
+                            <button class="preset-button" data-type="background" data-prompt="on a bustling city street">Street</button>
+                            <button class="preset-button" data-type="custom-bg">Custom</button>
+                        </div>
+                        <input type="text" id="custom-bg-input" placeholder="Click 'Custom' above to enter a scene" disabled>
+                    </div>
+                    <div class="edit-group">
+                        <label for="angle-select">Model Angle:</label>
+                        <select id="angle-select">
+                            <option value="">Keep Same</option>
+                            <option value="full body shot, facing the camera">Front</option>
+                            <option value="side profile shot">Side</option>
+                            <option value="three-quarter view shot">45-degree</option>
+                            <option value="multiple dynamic poses in a collage style">Collage</option>
+                        </select>
+                    </div>
+                    <div class="edit-group">
+                         <label for="custom-prompt-input">Advanced Prompt (Optional):</label>
+                         <textarea id="custom-prompt-input" rows="2" placeholder="e.g., 'make the lighting dramatic'"></textarea>
+                    </div>
+                    <button id="regenerate-button" class="button-secondary">
+                        <span class="button-text">Regenerate</span>
+                        <div class="spinner hidden"></div>
+                    </button>
+                </fieldset>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- The old modal is removed as it's now handled by the content script -->
+
+    <script src="sidebar.js"></script>
+</body>
+</html>
