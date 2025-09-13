@@ -7,7 +7,7 @@ import { generateFullBodyImage, extractApparelFromImage, performVirtualTryOn, re
 // ===================================================================
 // == 重要：请将 'YOUR_IMGBB_API_KEY' 替换为您自己的 imgbb API Key ==
 // ===================================================================
-const IMGBB_API_KEY = 'a6d210a0e9d6275ad39c1d2884a7b84f'; 
+const IMGBB_API_KEY = 'YOUR_IMGBB_API_KEY'; 
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- State Variables ---
@@ -17,23 +17,22 @@ document.addEventListener('DOMContentLoaded', () => {
     let uploadedImageUrl: string | null = null;
 
     // --- Element References ---
+    const modelSection = document.getElementById('model-section') as HTMLDivElement;
+    const apparelSection = document.getElementById('apparel-section') as HTMLDivElement;
+    const tryOnResultView = document.getElementById('try-on-result-view') as HTMLDivElement;
     const uploadButton = document.getElementById('upload-button') as HTMLButtonElement;
     const fileInput = document.getElementById('file-input') as HTMLInputElement;
     const clearImageButton = document.getElementById('clear-image-button') as HTMLButtonElement;
-    const imagePreview = document.getElementById('image-preview') as HTMLImageElement;
     const geminiGenerateButton = document.getElementById('gemini-generate-button') as HTMLButtonElement;
     const saveKeyButton = document.getElementById('save-key-button') as HTMLButtonElement;
     const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
     const selectApparelButton = document.getElementById('select-apparel-button') as HTMLButtonElement;
     const changeApparelButton = document.getElementById('change-apparel-button') as HTMLButtonElement;
-    const apparelImagePreview = document.getElementById('apparel-image-preview') as HTMLImageElement;
-    const apparelResultImage = document.getElementById('apparel-result-image') as HTMLImageElement;
     const generateApparelButton = document.getElementById('generate-apparel-button') as HTMLButtonElement;
     const downloadApparelButton = document.getElementById('download-apparel-button') as HTMLButtonElement;
     const backToPreviewButton = document.getElementById('back-to-preview-button') as HTMLButtonElement;
     const apparelCategorySelect = document.getElementById('apparel-category-select') as HTMLSelectElement;
     const virtualTryOnButton = document.getElementById('virtual-try-on-button') as HTMLButtonElement;
-    const tryOnResultImage = document.getElementById('try-on-result-image') as HTMLImageElement;
     const downloadTryOnButton = document.getElementById('download-try-on-button') as HTMLButtonElement;
     const startOverButton = document.getElementById('start-over-button') as HTMLButtonElement;
     const creativeEditSection = document.getElementById('creative-edit-section') as HTMLDivElement;
@@ -43,20 +42,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const regenerateButton = document.getElementById('regenerate-button') as HTMLButtonElement;
     const socialLinksContainer = document.querySelector('.social-links') as HTMLDivElement;
 
-    // --- 初始化 ---
+     // 【新增】为后备模态框的关闭按钮获取引用
+    const modalCloseButton = document.querySelector('.modal-close-button') as HTMLSpanElement;
+
+    // --- Initialization ---
     storage.getUserImage().then(ui.initializeUI);
     storage.getApiKey().then(apiKey => {
         if (apiKey) ui.setApiKeyValue(apiKey);
     });
 
-    // --- 辅助函数 ---
+    // --- Helper Functions ---
     async function getCurrentTab(): Promise<chrome.tabs.Tab> {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab || tab.id === undefined) {
-            throw new Error("无法获取活动的标签页。");
+            throw new Error("Could not get active tab.");
         }
         return tab;
     }
+
     async function imageUrlToBase64(url: string): Promise<string> {
         const response = await fetch(url);
         const blob = await response.blob();
@@ -67,8 +70,11 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.readAsDataURL(blob);
         });
     }
+
     async function uploadImageForSharing(base64Image: string): Promise<string> {
-        
+        if (IMGBB_API_KEY === 'YOUR_IMGBB_API_KEY' || !IMGBB_API_KEY) {
+            throw new Error('Please configure your imgbb API Key in the sidebar.ts file!');
+        }
         const pureBase64 = base64Image.split(',')[1];
         const formData = new FormData();
         formData.append('image', pureBase64);
@@ -77,32 +83,34 @@ document.addEventListener('DOMContentLoaded', () => {
             body: formData,
         });
         if (!response.ok) {
-            throw new Error('图片上传服务失败。');
+            throw new Error('Image upload service failed.');
         }
         const result = await response.json();
         if (result.success && result.data.url) {
             return result.data.url;
         } else {
-            throw new Error(`图片上传失败: ${result.error?.message || '未知错误'}`);
+            throw new Error(`Image upload failed: ${result.error?.message || 'Unknown error'}`);
         }
     }
 
-    /**
-     * 【新增】辅助函数：向内容脚本发送消息以显示全屏图片
-     * @param imageSrc - The Base64 data URI of the image to show.
-     */
+
     async function showFullScreenImage(imageSrc: string) {
         try {
             const tab = await getCurrentTab();
-            if (tab.id) {
+            if (!tab.id || tab.url?.startsWith('chrome://')) {
+                throw new Error("Cannot send message to internal Chrome pages.");
+            }
+            const response = await chrome.tabs.sendMessage(tab.id, { type: "PING" });
+            if (response && response.status === "PONG") {
                 chrome.tabs.sendMessage(tab.id, {
                     type: 'SHOW_FULL_SCREEN_IMAGE',
                     src: imageSrc
                 });
+            } else {
+                throw new Error("Content script responded unexpectedly.");
             }
         } catch(error) {
-            console.error("无法发送消息到内容脚本:", error);
-            // Fallback: show the old, small modal if messaging fails
+            console.warn("Could not connect to content script. Falling back to sidebar modal. Error:", error);
             ui.openImageModal(imageSrc);
         }
     }
@@ -110,19 +118,48 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 事件监听器 ---
 
     // ======================================================
+    // == 图片放大点击事件 (使用事件委托)
+    // ======================================================
+   
+    modelSection.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+        if (target.tagName === 'IMG' && (target as HTMLImageElement).src) {
+            showFullScreenImage((target as HTMLImageElement).src);
+        }
+    });
+    apparelSection.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+        if (target.tagName === 'IMG' && (target as HTMLImageElement).src) {
+            showFullScreenImage((target as HTMLImageElement).src);
+        }
+    });
+    tryOnResultView.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+        if (target.tagName === 'IMG' && (target as HTMLImageElement).src) {
+            showFullScreenImage((target as HTMLImageElement).src);
+        }
+    });
+
+    // 【新增】为后备模态框的关闭按钮绑定事件
+    if (modalCloseButton) {
+        modalCloseButton.addEventListener('click', ui.closeImageModal);
+    }
+        // ======================================================
     // == Section 1: 我的试衣模特 & 设置
     // ======================================================
     saveKeyButton.addEventListener('click', () => {
         const apiKey = apiKeyInput.value.trim();
         if (apiKey) {
             storage.saveApiKey(apiKey).then(() => {
-                alert('API Key 已保存！');
+                alert('API Key saved!');
             });
         } else {
-            alert('请输入有效的 API Key。');
+            alert('Please enter a valid API Key.');
         }
     });
+
     uploadButton.addEventListener('click', () => fileInput.click());
+
     fileInput.addEventListener('change', (event) => {
         const target = event.target as HTMLInputElement;
         if (target.files && target.files[0]) {
@@ -136,23 +173,23 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.readAsDataURL(target.files[0]);
         }
     });
+
     clearImageButton.addEventListener('click', () => {
         storage.clearUserImage().then(() => {
             fileInput.value = '';
             ui.showUploadView();
         });
     });
-    // 【更新】图片点击事件
-    imagePreview.addEventListener('click', () => { if (imagePreview.src) showFullScreenImage(imagePreview.src); });
+
     geminiGenerateButton.addEventListener('click', async () => {
         const apiKey = await storage.getApiKey();
         if (!apiKey) {
-            alert('请先在上方设置您的 Gemini API Key！');
+            alert('Please set your Gemini API Key above first!');
             return;
         }
         const currentImage = await storage.getUserImage();
         if (!currentImage) {
-            alert('未找到需要处理的图片。');
+            alert('No image found to process.');
             return;
         }
         ui.setGeminiButtonLoading(true);
@@ -162,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.showImagePreview(newImage);
         } catch (error) {
             console.error('Gemini API Error:', error);
-            alert(`图片生成失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            alert(`Image generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             ui.setGeminiButtonLoading(false);
         }
@@ -185,27 +222,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 await chrome.tabs.sendMessage(tab.id!, { type: 'CANCEL_SELECTION' });
             }
         } catch (error) {
-            console.error("脚本注入或通信失败:", error);
-            alert("无法在此页面上选择图片。请尝试刷新页面或在其他页面上使用。");
+            console.error("Script injection or communication failed:", error);
+            alert("Cannot select images on this page. Please try refreshing or using it on another page.");
             isSelectingApparel = false;
             ui.setApparelSelectionMode(false);
         }
     });
-    // 【更新】图片点击事件
-    apparelImagePreview.addEventListener('click', () => { if (apparelImagePreview.src) showFullScreenImage(apparelImagePreview.src); });
+
     changeApparelButton.addEventListener('click', () => {
         generatedApparelImageBase64 = null;
         ui.showApparelSelectionView();
     });
+
     generateApparelButton.addEventListener('click', async () => {
         const apiKey = await storage.getApiKey();
         if (!apiKey) {
-            alert('请先在上方设置您的 Gemini API Key！');
+            alert('Please set your Gemini API Key above first!');
             return;
         }
+        const apparelImagePreview = document.getElementById('apparel-image-preview') as HTMLImageElement;
         const imageUrl = apparelImagePreview.src;
         if (!imageUrl) {
-            alert('未找到需要处理的服饰图片。');
+            alert('No apparel image found to process.');
             return;
         }
         const category = apparelCategorySelect.value;
@@ -217,14 +255,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.showApparelResult(resultImage);
         } catch (error) {
             console.error('Apparel Extraction Error:', error);
-            alert(`服饰提取失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            alert(`Apparel extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             ui.setGenerateButtonLoading(false);
         }
     });
-    // 【更新】图片点击事件
-    apparelResultImage.addEventListener('click', () => { if (apparelResultImage.src) showFullScreenImage(apparelResultImage.src); });
+
     downloadApparelButton.addEventListener('click', () => {
+        const apparelResultImage = document.getElementById('apparel-result-image') as HTMLImageElement;
         const imageUrl = apparelResultImage.src;
         if (!imageUrl) return;
         const link = document.createElement('a');
@@ -234,21 +272,22 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
         document.body.removeChild(link);
     });
+
     backToPreviewButton.addEventListener('click', () => ui.hideApparelResult());
-    
+
     // ======================================================
     // == Section 3: 虚拟试穿 & 创意编辑
     // ======================================================
     virtualTryOnButton.addEventListener('click', async () => {
         const apiKey = await storage.getApiKey();
         if (!apiKey) {
-            alert('请先在上方设置您的 Gemini API Key！');
+            alert('Please set your Gemini API Key above first!');
             return;
         }
         const modelImage = await storage.getUserImage();
         const apparelImage = generatedApparelImageBase64; 
         if (!modelImage || !apparelImage) {
-            alert('错误：缺少模特或服饰图片数据。请返回并重试。');
+            alert('Error: Missing model or apparel image data. Please go back and retry.');
             return;
         }
         ui.setTryOnButtonLoading(true);
@@ -259,14 +298,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.showTryOnResult(resultImage);
         } catch (error) {
             console.error('Virtual Try-On Error:', error);
-            alert(`虚拟试穿失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            alert(`Virtual try-on failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             ui.setTryOnButtonLoading(false);
         }
     });
-    // 【更新】图片点击事件
-    tryOnResultImage.addEventListener('click', () => { if (tryOnResultImage.src) showFullScreenImage(tryOnResultImage.src); });
+
     downloadTryOnButton.addEventListener('click', () => {
+        const tryOnResultImage = document.getElementById('try-on-result-image') as HTMLImageElement;
         const imageUrl = tryOnResultImage.src;
         if (!imageUrl) return;
         const link = document.createElement('a');
@@ -276,6 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
         document.body.removeChild(link);
     });
+
     startOverButton.addEventListener('click', () => {
         generatedApparelImageBase64 = null;
         currentTryOnImageBase64 = null;
@@ -283,11 +323,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.preset-button.active').forEach(b => b.classList.remove('active'));
         customBgInput.value = '';
         customBgInput.disabled = true;
-        customBgInput.placeholder = '点击上方“自定义”后输入场景';
+        customBgInput.placeholder = "Click 'Custom' above to enter a scene";
         angleSelect.selectedIndex = 0;
         customPromptInput.value = '';
         ui.showApparelSelectionView();
     });
+
     creativeEditSection.addEventListener('click', (event) => {
         const target = event.target as HTMLButtonElement;
         if (!target.classList.contains('preset-button')) return;
@@ -305,15 +346,16 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (dataType === 'custom-bg') {
             customBgInput.value = '';
             customBgInput.disabled = false;
-            customBgInput.placeholder = "请输入自定义场景, e.g., 'at the beach'";
+            customBgInput.placeholder = "Enter custom scene, e.g., 'at the beach'";
             customBgInput.focus();
             target.classList.add('active');
         }
     });
+
     regenerateButton.addEventListener('click', async () => {
         const apiKey = await storage.getApiKey();
         if (!apiKey || !currentTryOnImageBase64) {
-            alert('缺少 API Key 或基础图片，无法重新生成。');
+            alert('Missing API Key or base image. Cannot regenerate.');
             return;
         }
         let creativePrompts: string[] = [];
@@ -324,7 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (angle) creativePrompts.push(`Change the model's pose and camera angle to: ${angle}.`);
         if (custom) creativePrompts.push(custom);
         if (creativePrompts.length === 0) {
-            alert('请输入或选择至少一个创意指令！');
+            alert('Please enter or select at least one creative instruction!');
             return;
         }
         const finalCreativePrompt = creativePrompts.join(' ');
@@ -333,28 +375,30 @@ document.addEventListener('DOMContentLoaded', () => {
             const newImage = await regenerateWithCreativeEdit(currentTryOnImageBase64, finalCreativePrompt, apiKey);
             currentTryOnImageBase64 = newImage;
             uploadedImageUrl = null;
+            const tryOnResultImage = document.getElementById('try-on-result-image') as HTMLImageElement;
             tryOnResultImage.src = newImage;
         } catch (error) {
             console.error('Creative Regeneration Error:', error);
-            alert(`创意生成失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            alert(`Creative regeneration failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             ui.setRegenerateButtonLoading(false);
         }
     });
+    
     socialLinksContainer.addEventListener('click', async (event) => {
         event.preventDefault();
         const target = (event.target as HTMLElement).closest('.social-link') as HTMLAnchorElement;
         if (!target || target.classList.contains('disabled')) return;
         if (!currentTryOnImageBase64) {
-            alert('没有可分享的图片。');
+            alert('No image available to share.');
             return;
         }
         try {
             if (!uploadedImageUrl) {
-                alert('首次分享需要上传图片，请稍候...');
+                alert('Uploading image for first share, please wait...');
                 uploadedImageUrl = await uploadImageForSharing(currentTryOnImageBase64);
             }
-            const textToShare = encodeURIComponent('看看我的新造型！这是由AI虚拟试衣间Chrome扩展生成的。');
+            const textToShare = encodeURIComponent('Check out my new look! Generated by the AI Virtual Try-On Chrome extension.');
             const urlToShare = encodeURIComponent(uploadedImageUrl);
             let shareUrl = '';
             switch (target.id) {
@@ -372,8 +416,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             chrome.tabs.create({ url: shareUrl });
         } catch (error) {
-            console.error('分享准备失败:', error);
-            alert(`分享失败: ${(error as Error).message}`);
+            console.error('Share preparation failed:', error);
+            alert(`Share failed: ${(error as Error).message}`);
         }
     });
 
@@ -387,5 +431,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.setApparelSelectionMode(false);
             sendResponse({ status: "ok" }); 
         }
+         return true; // Keep this true for async sendResponse
     });
 });

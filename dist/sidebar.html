@@ -130,7 +130,7 @@
         <div class="divider"></div>
 
         <!-- Creative Editing Section -->
-        <div id="creative-edit-section-container" class="hidden"> <!-- Wrapper for visibility control -->
+        <div id="creative-edit-section-container" class="hidden">
             <div id="creative-edit-section">
                 <fieldset>
                     <legend>✨ Creative Edit</legend>
@@ -168,7 +168,11 @@
 
     </div>
 
-    <!-- The old modal is removed as it's now handled by the content script -->
+    <!-- The in-sidebar modal is only for fallback, so it's simple -->
+    <div id="image-modal" class="modal hidden">
+        <span class="modal-close-button">&times;</span>
+        <img class="modal-content" id="modal-image">
+    </div>
 
     <script src="sidebar.js"></script>
 </body>

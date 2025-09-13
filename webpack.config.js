@@ -7,6 +7,7 @@ module.exports = {
     background: path.resolve(__dirname, 'src/background.ts'),
     sidebar: path.resolve(__dirname, 'src/sidebar/sidebar.ts'),
     'image-selector': path.resolve(__dirname, 'src/content/image-selector.ts'),
+    'content-script': path.resolve(__dirname, 'src/content/content-script.ts'), // <-- 新增这一行
   },
   output: {
     path: path.resolve(__dirname, 'dist'),

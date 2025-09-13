@@ -15,9 +15,8 @@ const apparelSection = document.getElementById('apparel-section');
 const tryOnResultView = document.getElementById('try-on-result-view');
 const tryOnResultImage = document.getElementById('try-on-result-image') as HTMLImageElement;
 const creativeEditContainer = document.getElementById('creative-edit-section-container');
-// This is a fallback for the in-sidebar modal, in case messaging fails
-const imageModal = document.getElementById('image-modal');
-const modalImage = document.getElementById('modal-image') as HTMLImageElement;
+const imageModal = document.getElementById('image-modal'); // For fallback
+const modalImage = document.getElementById('modal-image') as HTMLImageElement; // For fallback
 
 
 // --- UI Management Functions ---
@@ -67,6 +66,13 @@ export function showUploadView(): void {
 /**
  * Fallback function to open the in-sidebar modal if messaging the content script fails.
  * @param src The image source to display.
+ */
+/**
+ * Fallback function to open the in-sidebar modal.
+ * @param src The image source to display.
+ */
+/**
+ * Fallback function to open the in-sidebar modal.
  */
 export function openImageModal(src: string): void {
   if (modalImage && imageModal) {
@@ -197,9 +203,10 @@ export function showTryOnResult(imageUrl: string): void {
     tryOnResultImage.src = imageUrl;
     apparelSection.classList.add('hidden');
     tryOnResultView.classList.remove('hidden');
-    creativeEditContainer.classList.remove('hidden'); // Show the edit section
+    creativeEditContainer.classList.remove('hidden');
   }
 }
+
 
 /**
  * Resets the UI to the initial apparel selection state, hiding all subsequent views.
@@ -208,12 +215,10 @@ export function showApparelSelectionView(): void {
   if (apparelSection && apparelSelectionView && apparelPreviewView && apparelResultView && tryOnResultView && creativeEditContainer && apparelImagePreview) {
     apparelSection.classList.remove('hidden');
     apparelSelectionView.classList.remove('hidden');
-    
     apparelPreviewView.classList.add('hidden');
     apparelResultView.classList.add('hidden');
     tryOnResultView.classList.add('hidden');
-    creativeEditContainer.classList.add('hidden'); // Hide the edit section
-
+    creativeEditContainer.classList.add('hidden');
     apparelImagePreview.src = '';
   }
 }
